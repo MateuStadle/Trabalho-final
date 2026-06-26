@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DataStore — Persistência de Dados</title>
+<style>
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #30363d;
+    --accent:    #58a6ff;
+    --accent2:   #3fb950;
+    --warn:      #d29922;
+    --danger:    #f85149;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --mono:      "JetBrains Mono", "Fira Code", monospace;
+    --sans:      "Inter", system-ui, sans-serif;
+    --radius:    8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  header h1 { font-size: 20px; font-weight: 700; letter-spacing: -.5px; }
+  header h1 span { color: var(--accent); }
+  .badge {
+    font-size: 11px;
+    font-family: var(--mono);
+    background: #1f2937;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px 10px;
+    color: var(--muted);
+  }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 56px);
+  }
+
+  /* ── Sidebar ── */
+  aside {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--muted);
+    padding: 12px 8px 6px;
+  }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 9px 14px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+    text-align: left;
+    width: 100%;
+  }
+  .btn:hover { background: #1f2937; border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .btn.primary:hover { background: #79b8ff; }
+  .btn.success { background: var(--accent2); color: #000; border-color: var(--accent2); font-weight: 600; }
+  .btn.success:hover { background: #56d364; }
+  .btn .icon { font-size: 16px; }
+
+  .fmt-select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 8px 12px;
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  /* ── Main ── */
+  main {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow: auto;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; }
+  .card-body { padding: 16px; }
+
+  /* ── Status bar ── */
+  #status-bar {
+    background: #161b22;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 38px;
+  }
+  #status-bar.ok    { color: var(--accent2); border-color: var(--accent2); }
+  #status-bar.error { color: var(--danger);  border-color: var(--danger);  }
+  #status-bar.info  { color: var(--accent);  border-color: var(--accent);  }
+
+  /* ── Search & Sort ── */
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+  .input:focus { outline: none; border-color: var(--accent); }
+  #search-input { flex: 1; min-width: 180px; }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    background: #1c2128;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  th:hover { color: var(--text); }
+  th.sorted { color: var(--accent); }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #21262d;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1c2128; }
+  .tag {
+    display: inline-block;
+    background: #1f2937;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 1px 6px;
+    color: var(--muted);
+  }
+  .no-data { text-align: center; padding: 40px; color: var(--muted); }
+
+  /* ── Comparativo ── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .fmt-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .fmt-card .fmt-name {
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .fmt-card.json .fmt-name  { color: #f7c948; }
+  .fmt-card.csv  .fmt-name  { color: #3fb950; }
+  .fmt-card.pickle .fmt-name { color: #d2a8ff; }
+  .fmt-card.struct .fmt-name { color: #58a6ff; }
+  .fmt-stat { display: flex; justify-content: space-between; margin: 4px 0; font-size: 12px; color: var(--muted); }
+  .fmt-stat span:last-child { color: var(--text); font-family: var(--mono); }
+  .bar-wrap { margin-top: 10px; background: #21262d; border-radius: 4px; height: 6px; overflow: hidden; }
+  .bar { height: 100%; border-radius: 4px; transition: width .5s; }
+
+  /* ── Inspector ── */
+  .inspect-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 760px) { .inspect-grid { grid-template-columns: 1fr; } }
+  .inspect-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .inspect-label {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .inspect-label.text { color: #f7c948; }
+  .inspect-label.binary { color: #d2a8ff; }
+  pre.inspect-pre {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 12px;
+    overflow: auto;
+    max-height: 300px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  /* ── Spinner ── */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Fonte badge ── */
+  .source-badge {
+    font-size: 11px;
+    font-family: var(--mono);
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-left: 8px;
+  }
+  .source-badge.api    { background: #1f3a2f; color: var(--accent2); }
+  .source-badge.file   { background: #1f2d4a; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Data<span>Store</span></h1>
+  <span class="badge">JSON · CSV · pickle · struct</span>
+  <span id="source-badge" class="source-badge" style="display:none"></span>
+</header>
+
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside>
+    <div class="section-label">Fonte de dados</div>
+    <button class="btn primary" onclick="carregarAPI()">
+      <span class="icon">🌐</span> Carregar da API
+    </button>
+    <div class="section-label">Modo offline</div>
+    <select id="fmt-select" class="fmt-select">
+      <option value="json">JSON</option>
+      <option value="csv">CSV</option>
+      <option value="pickle">pickle</option>
+      <option value="struct">struct</option>
+    </select>
+    <button class="btn success" onclick="carregarOffline()">
+      <span class="icon">📂</span> Carregar do arquivo
+    </button>
+
+    <div class="section-label">Análise</div>
+    <button class="btn" onclick="comparar()">
+      <span class="icon">📊</span> Painel comparativo
+    </button>
+    <button class="btn" onclick="inspecionar()">
+      <span class="icon">🔬</span> Texto vs Binário
+    </button>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main>
+
+    <!-- Status -->
+    <div id="status-bar">Pronto. Carregue dados da API ou de um arquivo salvo.</div>
+
+    <!-- Busca e ordenação -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Busca &amp; Ordenação</span>
+        <span id="count-badge" class="tag">0 registros</span>
+      </div>
+      <div class="card-body">
+        <div class="toolbar">
+          <input id="search-input" class="input" placeholder="Buscar por nome, email, cidade…" oninput="renderTabela()" />
+          <select id="sort-field" class="input" onchange="renderTabela()">
+            <option value="id">ID</option>
+            <option value="name">Nome</option>
+            <option value="username">Username</option>
+            <option value="email">Email</option>
+            <option value="city">Cidade</option>
+            <option value="company">Empresa</option>
+          </select>
+          <select id="sort-dir" class="input" onchange="renderTabela()">
+            <option value="asc">↑ Asc</option>
+            <option value="desc">↓ Desc</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Registros</span>
+      </div>
+      <div class="table-wrap">
+        <table id="data-table">
+          <thead>
+            <tr>
+              <th onclick="sortBy('id')">ID</th>
+              <th onclick="sortBy('name')">Nome</th>
+              <th onclick="sortBy('username')">Username</th>
+              <th onclick="sortBy('email')">Email</th>
+              <th onclick="sortBy('city')">Cidade</th>
+              <th onclick="sortBy('company')">Empresa</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <tr><td colspan="6" class="no-data">Nenhum dado carregado</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Painel comparativo -->
+    <div id="compare-section" class="card" style="display:none">
+      <div class="card-header">
+        <span class="card-title">📊 Painel Comparativo — Tamanho e Tempo</span>
+      </div>
+      <div class="card-body">
+        <div id="compare-grid" class="compare-grid"></div>
+      </div>
+    </div>
+
+    <!-- Inspector -->
+    <div id="inspect-section" class="card" style="display:none">
+      <div class="card-header">
+        <span class="card-title">🔬 Inspeção: Texto vs Binário</span>
+      </div>
+      <div class="card-body">
+        <div class="inspect-grid">
+          <div class="inspect-box">
+            <div class="inspect-label text">📄 JSON (legível)</div>
+            <pre class="inspect-pre" id="json-preview">—</pre>
+          </div>
+          <div class="inspect-box">
+            <div class="inspect-label binary">🔒 pickle — hexdump (ilegível)</div>
+            <pre class="inspect-pre" id="hex-preview">—</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const API = "http://localhost:5000";
+let dados = [];
+let sortField = "id";
+let sortDir   = "asc";
+
+// ── utilidades ─────────────────────────────────────────────────────────────
+
+function setStatus(msg, tipo = "") {
+  const el = document.getElementById("status-bar");
+  el.textContent = msg;
+  el.className = tipo;
+}
+
+function setSourceBadge(fonte) {
+  const el = document.getElementById("source-badge");
+  if (!fonte) { el.style.display = "none"; return; }
+  el.style.display = "inline";
+  if (fonte.startsWith("arquivo")) {
+    el.className = "source-badge file";
+    el.textContent = "💾 " + fonte;
+  } else {
+    el.className = "source-badge api";
+    el.textContent = "🌐 " + fonte;
+  }
+}
+
+function getVal(u, campo) {
+  if (campo === "city")    return u.address?.city    ?? "";
+  if (campo === "company") return u.company?.name    ?? "";
+  return u[campo] ?? "";
+}
+
+// ── render da tabela ────────────────────────────────────────────────────────
+
+function renderTabela() {
+  const query = document.getElementById("search-input").value.toLowerCase();
+  const sf    = document.getElementById("sort-field").value;
+  const sd    = document.getElementById("sort-dir").value;
+
+  let lista = dados.filter(u => {
+    const hay = [u.name, u.username, u.email,
+                 u.address?.city, u.company?.name].join(" ").toLowerCase();
+    return hay.includes(query);
+  });
+
+  lista.sort((a, b) => {
+    let va = getVal(a, sf), vb = getVal(b, sf);
+    if (sf === "id") { va = +va; vb = +vb; }
+    else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
+    if (va < vb) return sd === "asc" ? -1 :  1;
+    if (va > vb) return sd === "asc" ?  1 : -1;
+    return 0;
+  });
+
+  const tbody = document.getElementById("table-body");
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="no-data">Nenhum resultado encontrado</td></tr>`;
+  } else {
+    tbody.innerHTML = lista.map(u => `
+      <tr>
+        <td><span class="tag">${u.id}</span></td>
+        <td>${u.name}</td>
+        <td><span class="tag">${u.username}</span></td>
+        <td>${u.email}</td>
+        <td>${u.address?.city ?? "—"}</td>
+        <td>${u.company?.name ?? "—"}</td>
+      </tr>`).join("");
+  }
+
+  document.getElementById("count-badge").textContent =
+    `${lista.length} / ${dados.length} registros`;
+}
+
+function sortBy(campo) {
+  if (sortField === campo) {
+    sortDir = sortDir === "asc" ? "desc" : "asc";
+  } else {
+    sortField = campo;
+    sortDir   = "asc";
+  }
+  document.getElementById("sort-field").value = sortField;
+  document.getElementById("sort-dir").value   = sortDir;
+  renderTabela();
+}
+
+// ── carregar da API ─────────────────────────────────────────────────────────
+
+async function carregarAPI() {
+  setStatus("⏳ Baixando da API e salvando nos 4 formatos…", "info");
+  try {
+    const r = await fetch(`${API}/carregar`);
+    const j = await r.json();
+    if (j.erro) throw new Error(j.erro);
+
+    dados = j.dados;
+    renderTabela();
+    setSourceBadge(j.fonte);
+
+    const ts = j.tempos_salvar;
+    setStatus(
+      `✔ ${dados.length} registros carregados e salvos — ` +
+      `JSON ${ts.json}ms · CSV ${ts.csv}ms · pickle ${ts.pickle}ms · struct ${ts.struct}ms`,
+      "ok"
+    );
+  } catch (e) {
+    setStatus("✖ Erro ao carregar da API: " + e.message, "error");
+  }
+}
+
+// ── carregar do arquivo ─────────────────────────────────────────────────────
+
+async function carregarOffline() {
+  const fmt = document.getElementById("fmt-select").value;
+  setStatus(`⏳ Lendo arquivo ${fmt} do disco…`, "info");
+  try {
+    const r = await fetch(`${API}/offline?formato=${fmt}`);
+    const j = await r.json();
+    if (j.erro) throw new Error(j.erro);
+
+    dados = j.dados;
+    renderTabela();
+    setSourceBadge(j.fonte);
+    setStatus(
+      `✔ ${dados.length} registros lidos de ${fmt} em ${j.tempo_carregar}ms`,
+      "ok"
+    );
+  } catch (e) {
+    setStatus("✖ " + e.message, "error");
+  }
+}
+
+// ── painel comparativo ──────────────────────────────────────────────────────
+
+async function comparar() {
+  setStatus("⏳ Calculando comparativo…", "info");
+  try {
+    const r = await fetch(`${API}/comparar`);
+    const j = await r.json();
+
+    const sizes = Object.values(j).map(v => v.tamanho_kb);
+    const maxKB = Math.max(...sizes, 1);
+
+    const cores = { json: "#f7c948", csv: "#3fb950", pickle: "#d2a8ff", struct: "#58a6ff" };
+
+    const html = Object.entries(j).map(([fmt, info]) => {
+      const pct = Math.round((info.tamanho_kb / maxKB) * 100);
+      return `
+        <div class="fmt-card ${fmt}">
+          <div class="fmt-name">.${fmt === "pickle" ? "pkl" : fmt === "struct" ? "bin" : fmt}</div>
+          <div class="fmt-stat"><span>Tamanho</span><span>${info.tamanho_kb} KB</span></div>
+          <div class="fmt-stat"><span>Carregar</span>
+            <span>${info.tempo_carregar !== null ? info.tempo_carregar + " ms" : "—"}</span>
+          </div>
+          <div class="fmt-stat"><span>Existe?</span><span>${info.existe ? "✔" : "✖"}</span></div>
+          <div class="bar-wrap">
+            <div class="bar" style="width:${pct}%;background:${cores[fmt]}"></div>
+          </div>
+        </div>`;
+    }).join("");
+
+    document.getElementById("compare-grid").innerHTML = html;
+    document.getElementById("compare-section").style.display = "block";
+    setStatus("✔ Painel comparativo atualizado", "ok");
+    document.getElementById("compare-section").scrollIntoView({ behavior: "smooth" });
+  } catch (e) {
+    setStatus("✖ Erro no comparativo: " + e.message, "error");
+  }
+}
+
+// ── inspetor ────────────────────────────────────────────────────────────────
+
+async function inspecionar() {
+  setStatus("⏳ Carregando amostras de arquivo…", "info");
+  try {
+    const r = await fetch(`${API}/inspecionar`);
+    const j = await r.json();
+
+    document.getElementById("json-preview").textContent =
+      j.json_amostra ?? "Arquivo JSON não encontrado.";
+    document.getElementById("hex-preview").textContent =
+      j.pickle_hexdump ?? "Arquivo pickle não encontrado.";
+
+    document.getElementById("inspect-section").style.display = "block";
+    setStatus("✔ Inspeção carregada", "ok");
+    document.getElementById("inspect-section").scrollIntoView({ behavior: "smooth" });
+  } catch (e) {
+    setStatus("✖ Erro na inspeção: " + e.message, "error");
+  }
+}
+</script>
+</body>
+</html>
